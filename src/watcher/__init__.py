@@ -1,1 +1,1 @@
-from .watcher import PlexSQLiteBackupHandler
+from .watcher import PlexLocalFileBackupHandler
