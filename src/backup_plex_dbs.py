@@ -6,6 +6,7 @@ from watcher import PlexLocalFileBackupHandler
 from hachiko.hachiko import AIOWatchdog
 
 PLEX_CONFIG_DIR = "/config/Library/Application Support/Plex Media Server/"
+ENABLE_STRINGS = ["true", "yes", "1", "y"]
 
 
 def get_environ():
@@ -15,6 +16,8 @@ def get_environ():
     db_backup_path = environ.get("DB_BACKUP_PATH")
     if db_backup_path is None:
         db_backup_path = "/db-backup"
+    enable_metadata_flag = environ.get("ENABLE_METADATA_BACKUP", "False")
+    enable_metadata = enable_metadata_flag.lower() in ENABLE_STRINGS
     plex_metadata_path = environ.get("PLEX_METADATA_PATH")
     if plex_metadata_path is None:
         plex_metadata_path = PLEX_CONFIG_DIR + "Metadata"
@@ -23,7 +26,8 @@ def get_environ():
         metadata_backup_path = "/metadata-backup"
 
     return (plex_sql_path, db_backup_path,
-            plex_metadata_path, metadata_backup_path)
+            plex_metadata_path, metadata_backup_path,
+            enable_metadata)
 
 
 def setup_logging():
@@ -46,7 +50,8 @@ async def start_watcher(watcher):
 
 
 def start_watching(plex_sql_path, backup_path,
-                   plex_metadata_path, metadata_backup_path):
+                   plex_metadata_path, metadata_backup_path,
+                   enable_metadata):
     logger = setup_logging()
     loop = asyncio.get_event_loop()
     logger.info("Using PLEX_DB_PATH %s", plex_sql_path)
@@ -56,28 +61,33 @@ def start_watching(plex_sql_path, backup_path,
     db_handler = PlexLocalFileBackupHandler(plex_sql_path,
                                             backup_path,
                                             "SQLite")
-    metadata_handler = PlexLocalFileBackupHandler(plex_metadata_path,
-                                                  metadata_backup_path,
-                                                  "Metadata")
     db_watcher = AIOWatchdog(plex_sql_path,
                              event_handler=db_handler)
-    metadata_watcher = AIOWatchdog(plex_metadata_path,
-                                   event_handler=metadata_handler)
+    if enable_metadata:
+        metadata_handler = PlexLocalFileBackupHandler(plex_metadata_path,
+                                                      metadata_backup_path,
+                                                      "Metadata")
+        metadata_watcher = AIOWatchdog(plex_metadata_path,
+                                       event_handler=metadata_handler)
     try:
         logger.info("Starting Watchers")
         loop.create_task(start_watcher(db_watcher))
-        loop.create_task(start_watcher(metadata_watcher))
+        if enable_metadata:
+            loop.create_task(start_watcher(metadata_watcher))
         loop.run_forever()
     except KeyboardInterrupt:
         logger.info("Stopping Watchers")
         db_watcher.stop()
-        metadata_watcher.stop()
+        if enable_metadata:
+            metadata_watcher.stop()
     finally:
         loop.close()
 
 
 if __name__ == "__main__":
     (plex_sql_path, db_backup_path,
-     plex_metadata_path, metadata_backup_path) = get_environ()
+     plex_metadata_path, metadata_backup_path,
+     enable_metadata) = get_environ()
     start_watching(plex_sql_path, db_backup_path,
-                   plex_metadata_path, metadata_backup_path)
+                   plex_metadata_path, metadata_backup_path,
+                   enable_metadata)
