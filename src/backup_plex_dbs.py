@@ -24,15 +24,16 @@ def get_environ():
     metadata_backup_path = environ.get("METADATA_BACKUP_PATH")
     if metadata_backup_path is None:
         metadata_backup_path = "/metadata-backup"
-
+    logging_level = environ.get("LOG_LEVEL", "INFO").upper()
     return (plex_sql_path, db_backup_path,
             plex_metadata_path, metadata_backup_path,
-            enable_metadata)
+            enable_metadata, logging_level)
 
 
-def setup_logging():
+def setup_logging(logging_level):
     root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
+    level = logging.getLevelName(logging_level)
+    root.setLevel(level)
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.DEBUG)
@@ -51,8 +52,8 @@ async def start_watcher(watcher):
 
 def start_watching(plex_sql_path, backup_path,
                    plex_metadata_path, metadata_backup_path,
-                   enable_metadata):
-    logger = setup_logging()
+                   enable_metadata, logging_level):
+    logger = setup_logging(logging_level)
     loop = asyncio.get_event_loop()
     logger.info("Using PLEX_DB_PATH %s", plex_sql_path)
     logger.info("Using DB_BACKUP_PATH %s", backup_path)
@@ -87,7 +88,7 @@ def start_watching(plex_sql_path, backup_path,
 if __name__ == "__main__":
     (plex_sql_path, db_backup_path,
      plex_metadata_path, metadata_backup_path,
-     enable_metadata) = get_environ()
+     enable_metadata, logging_level) = get_environ()
     start_watching(plex_sql_path, db_backup_path,
                    plex_metadata_path, metadata_backup_path,
-                   enable_metadata)
+                   enable_metadata, logging_level)
