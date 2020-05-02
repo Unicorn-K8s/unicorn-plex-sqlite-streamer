@@ -3,7 +3,7 @@ from os.path import join, isdir
 from pathlib import Path
 from os import remove, stat, chown
 import stat as lib_stat
-from shutil import copy2, move
+from shutil import copy2, move, rmtree
 import logging
 
 
@@ -32,8 +32,11 @@ class PlexLocalFileBackupHandler(AIOEventHandler):
         delete_path = join(self._backup_path, plex_file)
         self._logger.debug("Removing file: %s", delete_path)
         try:
-            remove(delete_path)
-        except FileNotFoundError:
+            if isdir(delete_path):
+                rmtree(delete_path)
+            else:
+                remove(delete_path)
+        except (FileNotFoundError, NotADirectoryError):
             self._logger.error("File %s has already been deleted",
                                delete_path)
 
