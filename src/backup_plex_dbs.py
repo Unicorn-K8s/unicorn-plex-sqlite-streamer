@@ -4,6 +4,7 @@ import sys
 from os import environ
 from watcher import PlexLocalFileBackupHandler
 from hachiko.hachiko import AIOWatchdog
+from watchdog.observers.polling import PollingObserver
 
 PLEX_CONFIG_DIR = "/config/Library/Application Support/Plex Media Server/"
 ENABLE_STRINGS = ["true", "yes", "1", "y"]
@@ -63,13 +64,15 @@ def start_watching(plex_sql_path, backup_path,
                                             backup_path,
                                             "SQLite")
     db_watcher = AIOWatchdog(plex_sql_path,
-                             event_handler=db_handler)
+                             event_handler=db_handler,
+                             observer=PollingObserver())
     if enable_metadata:
         metadata_handler = PlexLocalFileBackupHandler(plex_metadata_path,
                                                       metadata_backup_path,
                                                       "Metadata")
         metadata_watcher = AIOWatchdog(plex_metadata_path,
-                                       event_handler=metadata_handler)
+                                       event_handler=metadata_handler,
+                                       observer=PollingObserver())
     try:
         logger.info("Starting Watchers")
         loop.create_task(start_watcher(db_watcher))
